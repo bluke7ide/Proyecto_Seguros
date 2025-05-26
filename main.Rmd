@@ -27,4 +27,34 @@ data <- rbind(Crashes_Of_Airplanes, ICAO_accidents)
 rm(ICAO_accidents, Crashes_Of_Airplanes)
 ```
 
+```{r}
+data <- data %>%
+  mutate(Operator = case_when(
+    str_detect(tolower(Operator), "air") ~ "Comercial",
+    str_detect(tolower(Operator), "military|force|navy") ~ "Militar",
+    TRUE ~ "Otro"
+  ))
+```
+
+
+```{r}
+mod.poisson <- glm(Fatalities ~ Operator, 
+                      data = data, family = poisson)
+summary(mod.poisson)
+```
+
+```{r}
+dispersion <- sum(residuals(mod.poisson, type = "pearson")^2) / df.residual(mod.poisson)
+dispersion
+```
+
+
+```{r}
+library(MASS)
+modelo_nb <- glm.nb(Fatalities ~ Operator, data = data)
+summary(modelo_nb)
+```
+
+
+
 
