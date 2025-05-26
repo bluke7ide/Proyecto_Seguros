@@ -1,0 +1,30 @@
+---
+title: "main"
+output: html_document
+---
+
+
+```{r}
+pacman::p_load(tidyverse,
+               readxl)
+```
+
+```{r, warning=FALSE, message=FALSE}
+Crashes_Of_Airplanes <- read_excel("data/Crashes_Of_Airplanes.xlsx")
+ICAO_accidents <- read_csv("data/ICAO_accidents.csv")
+ICAO_accidents <- ICAO_accidents %>% select(-1)
+ICAO_accidents$Date <- ymd(gsub("T00:00:00.000Z","", ICAO_accidents$Date ))
+ICAO_accidents <- ICAO_accidents %>% select(-c(2, 7:10, 12:18, 21:22, 24))
+Crashes_Of_Airplanes <- Crashes_Of_Airplanes %>% select(-c(2,5,6,13))
+Crashes_Of_Airplanes <- Crashes_Of_Airplanes %>% mutate(
+  Fatalities = Fatalities + Ground
+)
+ICAO_accidents <- ICAO_accidents %>% select(-7,-8,-9)
+Crashes_Of_Airplanes <- Crashes_Of_Airplanes %>% select(1,2,4,5,3,8)
+names(Crashes_Of_Airplanes) <- names(ICAO_accidents)
+
+data <- rbind(Crashes_Of_Airplanes, ICAO_accidents)
+rm(ICAO_accidents, Crashes_Of_Airplanes)
+```
+
+
