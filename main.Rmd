@@ -9,6 +9,7 @@ pacman::p_load(tidyverse,
                readxl)
 ```
 
+# Antiguas bases de datos
 ```{r, warning=FALSE, message=FALSE}
 Crashes_Of_Airplanes <- read_excel("data/Crashes_Of_Airplanes.xlsx")
 ICAO_accidents <- read_csv("data/ICAO_accidents.csv")
@@ -27,6 +28,20 @@ data <- rbind(Crashes_Of_Airplanes, ICAO_accidents)
 rm(ICAO_accidents, Crashes_Of_Airplanes)
 ```
 
+# Base completa
+```{r}
+data <- read_csv("data/aircrahesFullDataUpdated_2024.csv")
+names(data)[11] <- "Fatalities"
+data <- data %>% mutate(
+  all_fatal = Ground + Fatalities,
+  tasa_muertes = Fatalities/Aboard)
+data <- data[data$tasa_muertes != Inf,]
+data <- data[!is.na(data$tasa_muertes),]
+
+```
+
+
+# GLM
 ```{r}
 data <- data %>%
   mutate(Operator = case_when(
@@ -55,6 +70,30 @@ modelo_nb <- glm.nb(Fatalities ~ Operator, data = data)
 summary(modelo_nb)
 ```
 
+# Primas
 
+```{r}
+data <- data %>% mutate(
+  costo_aviones = 100e6 * 1.05**(-(2024-data$Year)),
+  costo_vidas = data$Fatalities * 2.1e6 * 1.05**(-(2024-data$Year))
+)
+
+qx <- sum(data$Year == 2024)/1e6 # 43.8e6
+mean_fatal <- mean(data$Fatalities,na.rm = T)
+
+# Costo de asegurar un avión a 100 años
+
+ins_aviones <- sum(sapply(1:100, function(x) qx*(1-qx)**(x-1)*100e6*1.05**(-x+1)))
+
+
+# Costo de asegurar las personas que mueren en el avión a 100 años
+
+ins_vidas <- sum(sapply(1:100, function(x) qx*(1-qx)**(x-1)*mean_fatal*2.1e6*1.05**(-x+1)))
+
+# Prima nivelada
+
+an <- (1-1.05^-100)/0.05
+(prima <- (ins_aviones+ins_vidas)/an)
+```
 
 
