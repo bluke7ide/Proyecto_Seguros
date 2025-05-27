@@ -34,7 +34,7 @@ fig <- data %>%
   coord_flip() +
   labs(x = "Aeronave", y = "Frecuencia") +
   theme_minimal()
-ggsave("res/aviones_acc.pdf", fig)
+ggsave("res/aviones_acc.pdf", fig, width = 6, height = 4)
 ```
 
 ## Aeronaves con mayor cantidad de accidentes generalizada al fabricante 
@@ -47,7 +47,7 @@ fig <- data %>%
   coord_flip() +
   labs(x = "Fabricante", y = "Frecuencia") +
   theme_minimal()
-ggsave("res/fab_acc.pdf", fig)
+ggsave("res/fab_acc.pdf", fig, width = 6, height = 4)
 ```
 
 ## Cantidad de accidentes por año
@@ -58,7 +58,7 @@ fig <- data %>%
   geom_line(color = "lightblue4", size = 0.75) +
   labs(x = "Año", y = "Cantidad de accidentes") +
   theme_minimal()
-ggsave("res/acc_anual.pdf", fig)
+ggsave("res/acc_anual.pdf", fig, width = 6, height = 4)
 ```
 
 ## Cantidad de accidentes por país/región
@@ -72,7 +72,7 @@ fig <- data %>%
   coord_flip() +
   labs(x = "País/Región", y = "Frecuencia") +
   theme_minimal()
-ggsave("res/acc_reg.pdf", fig)
+ggsave("res/acc_reg.pdf", fig, width = 6, height = 4)
 ```
 
 ## Distribución muertes a bordo
@@ -84,7 +84,7 @@ fig <- data %>%
                  color = "black") +
   labs(x = "Fatalities", y = "Frecuencia") +
   theme_minimal()
-ggsave("res/muertes_bor.pdf", fig)
+ggsave("res/muertes_bor.pdf", fig, width = 6, height = 4)
 ```
 
 ## Distribución de la tasa de muertes
@@ -97,7 +97,7 @@ fig <- data %>%
                  color = "black") +
   labs(x = "Tasa de muertes", y = "Frecuencia") +
   theme_minimal()
-ggsave("res/tasa_muertes.pdf", fig)
+ggsave("res/tasa_muertes.pdf", fig, width = 6, height = 4)
 ```
 
 ## Severidad relativa del accidente
@@ -115,7 +115,7 @@ fig <- data %>%
   scale_color_gradient(low = "lightblue", high = "darkred") +
   labs(x = "Pasajeros a bordo", y = "Muertes", color = "Tasa de muertes") +
   theme_minimal()
-ggsave("res/severidad.pdf", fig)
+ggsave("res/severidad.pdf", fig, width = 6, height = 4)
 ```
 
 # GLM
