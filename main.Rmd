@@ -21,18 +21,94 @@ data <- data[data$tasa_muertes != Inf, ]
 data <- data[!is.na(data$tasa_muertes), ]
 ```
 
-```{r}
-top.aircrafts <- data %>% 
-  count(Aircraft, sort = TRUE) %>% 
-  slice_max(n, n = 100)
+# Análisis exploratorio de datos
 
-top20.aircrafts <- top.aircrafts %>% slice_max(n, n = 20)
-ggplot(top20.aircrafts, aes(x = reorder(Aircraft, n), y = n)) +
+## Aeronaves con mayor cantidad de accidentes
+```{r}
+data %>% 
+  count(Aircraft, sort = TRUE) %>% 
+  slice_max(n, n = 20) %>% 
+  ggplot(aes(x = reorder(Aircraft, n), y = n)) +
   geom_col(fill = 'lightblue4') +
   coord_flip() +
-  labs(x = "Aeronave", y = "Frecuencia")
+  labs(x = "Aeronave", y = "Frecuencia") +
+  theme_minimal()
 ```
 
+## Aeronaves con mayor cantidad de accidentes generalizada al fabricante 
+```{r}
+data %>% 
+  count(`Aircraft Manufacturer`, sort = TRUE) %>% 
+  slice_max(n, n= 15) %>% 
+  ggplot(aes(x = reorder(`Aircraft Manufacturer`, n), y = n)) +
+  geom_col(fill = 'lightblue4') +
+  coord_flip() +
+  labs(x = "Fabricante", y = "Frecuencia") +
+  theme_minimal()
+```
+
+## Cantidad de accidentes por año
+```{r}
+data %>%
+  count(Year) %>%
+  ggplot(aes(x = Year, y = n)) +
+  geom_line(color = "lightblue4", size = 0.75) +
+  labs(x = "Año", y = "Cantidad de accidentes") +
+  theme_minimal()
+```
+
+## Cantidad de accidentes por país/región
+```{r}
+data %>%
+  filter(!is.na(`Country/Region`), `Country/Region` != "N/A") %>%
+  count(`Country/Region`, sort = T) %>%
+  slice_max(n, n = 20) %>%
+  ggplot(aes(x = reorder(`Country/Region`, n), y = n)) +
+  geom_col(fill = 'lightblue4') +
+  coord_flip() +
+  labs(x = "País/Región", y = "Frecuencia") +
+  theme_minimal()
+```
+
+## Distribución muertes a bordo
+```{r}
+data %>%
+  ggplot(aes(x = Fatalities)) +
+  geom_histogram(binwidth = 5,
+                 fill = "lightblue4",
+                 color = "black") +
+  labs(x = "Fatalities", y = "Frecuencia") +
+  theme_minimal()
+```
+
+## Distribución de la tasa de muertes
+
+```{r}
+data %>%
+  ggplot(aes(x = tasa_muertes)) +
+    geom_histogram(binwidth = 0.05,
+                 fill = "lightblue4",
+                 color = "black") +
+  labs(x = "Tasa de muertes", y = "Frecuencia") +
+  theme_minimal()
+```
+
+## Severidad relativa del accidente
+```{r}
+data %>%
+  ggplot(aes(x = Aboard, y = Fatalities, color = tasa_muertes)) +
+  geom_point(alpha = 0.75, size = 2) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    linetype = "dashed",
+    color = "red",
+    alpha = 0.5
+  ) +
+  scale_color_gradient(low = "lightblue", high = "darkred") +
+  labs(x = "Pasajeros a bordo", y = "Muertes", color = "Tasa de muertes") +
+  theme_minimal()
+```
 
 # GLM
 ```{r}
