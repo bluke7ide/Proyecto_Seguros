@@ -8,7 +8,8 @@ output: html_document
 pacman::p_load(tidyverse, 
                dplyr, 
                readxl, 
-               ggplot2)
+               ggplot2,
+               MASS)
 ```
 
 # Base de datos
@@ -25,7 +26,7 @@ data <- data[!is.na(data$tasa_muertes), ]
 
 ## Aeronaves con mayor cantidad de accidentes
 ```{r}
-data %>% 
+fig <- data %>% 
   count(Aircraft, sort = TRUE) %>% 
   slice_max(n, n = 20) %>% 
   ggplot(aes(x = reorder(Aircraft, n), y = n)) +
@@ -33,11 +34,12 @@ data %>%
   coord_flip() +
   labs(x = "Aeronave", y = "Frecuencia") +
   theme_minimal()
+ggsave("res/aviones_acc.pdf", fig)
 ```
 
 ## Aeronaves con mayor cantidad de accidentes generalizada al fabricante 
 ```{r}
-data %>% 
+fig <- data %>% 
   count(`Aircraft Manufacturer`, sort = TRUE) %>% 
   slice_max(n, n= 15) %>% 
   ggplot(aes(x = reorder(`Aircraft Manufacturer`, n), y = n)) +
@@ -45,21 +47,23 @@ data %>%
   coord_flip() +
   labs(x = "Fabricante", y = "Frecuencia") +
   theme_minimal()
+ggsave("res/fab_acc.pdf", fig)
 ```
 
 ## Cantidad de accidentes por año
 ```{r}
-data %>%
+fig <- data %>%
   count(Year) %>%
   ggplot(aes(x = Year, y = n)) +
   geom_line(color = "lightblue4", size = 0.75) +
   labs(x = "Año", y = "Cantidad de accidentes") +
   theme_minimal()
+ggsave("res/acc_anual.pdf", fig)
 ```
 
 ## Cantidad de accidentes por país/región
 ```{r}
-data %>%
+fig <- data %>%
   filter(!is.na(`Country/Region`), `Country/Region` != "N/A") %>%
   count(`Country/Region`, sort = T) %>%
   slice_max(n, n = 20) %>%
@@ -68,34 +72,37 @@ data %>%
   coord_flip() +
   labs(x = "País/Región", y = "Frecuencia") +
   theme_minimal()
+ggsave("res/acc_reg.pdf", fig)
 ```
 
 ## Distribución muertes a bordo
 ```{r}
-data %>%
+fig <- data %>%
   ggplot(aes(x = Fatalities)) +
   geom_histogram(binwidth = 5,
                  fill = "lightblue4",
                  color = "black") +
   labs(x = "Fatalities", y = "Frecuencia") +
   theme_minimal()
+ggsave("res/muertes_bor.pdf", fig)
 ```
 
 ## Distribución de la tasa de muertes
 
 ```{r}
-data %>%
+fig <- data %>%
   ggplot(aes(x = tasa_muertes)) +
     geom_histogram(binwidth = 0.05,
                  fill = "lightblue4",
                  color = "black") +
   labs(x = "Tasa de muertes", y = "Frecuencia") +
   theme_minimal()
+ggsave("res/tasa_muertes.pdf", fig)
 ```
 
 ## Severidad relativa del accidente
 ```{r}
-data %>%
+fig <- data %>%
   ggplot(aes(x = Aboard, y = Fatalities, color = tasa_muertes)) +
   geom_point(alpha = 0.75, size = 2) +
   geom_abline(
@@ -108,6 +115,7 @@ data %>%
   scale_color_gradient(low = "lightblue", high = "darkred") +
   labs(x = "Pasajeros a bordo", y = "Muertes", color = "Tasa de muertes") +
   theme_minimal()
+ggsave("res/severidad.pdf", fig)
 ```
 
 # GLM
@@ -134,7 +142,6 @@ dispersion
 
 
 ```{r}
-library(MASS)
 modelo_nb <- glm.nb(Fatalities ~ Operator, data = data)
 summary(modelo_nb)
 ```
