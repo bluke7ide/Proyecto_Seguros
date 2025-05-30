@@ -16,11 +16,39 @@ pacman::p_load(tidyverse,
 ```{r message=FALSE, warning=FALSE}
 data <- read_csv("data/aircrahesFullDataUpdated_2024.csv")
 names(data)[11] <- "Fatalities"
-data <- data %>% mutate(all_fatal = Ground + Fatalities,
-                        tasa_muertes = Fatalities / Aboard)
-data <- data[data$tasa_muertes != Inf, ]
-data <- data[!is.na(data$tasa_muertes), ]
+data <- data %>% mutate(total_fatalities = Ground + Fatalities,
+                        fatalities_rate = Fatalities / Aboard)
+data <- data[data$fatalities_rate != Inf, ]
+data <- data[!is.na(data$fatalities_rate), ]
 ```
+
+```{r}
+costos.aviones <- read_excel("data/precio_estimado_aviones.xlsx")
+x <- 1:500
+y <- -1.5166792 + 0.7791141*x
+df <- data.frame(X=x, Y=y)
+
+mod <- lm((Costo_MUSD + 10) ~ Pasajeros, data = costos.aviones) 
+summary(mod)
+ggplot(df, aes(x = x, y = (y))) +
+  geom_line() +
+  labs(x = "Número de pasajeros", y = "Costo (millones USD)") +
+  theme_minimal()
+
+coef(mod)
+```
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Análisis exploratorio de datos
 
