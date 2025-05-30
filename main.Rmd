@@ -8,8 +8,7 @@ output: html_document
 pacman::p_load(tidyverse, 
                dplyr, 
                readxl, 
-               ggplot2,
-               MASS)
+               ggplot2)
 ```
 
 # Base de datos
@@ -42,19 +41,14 @@ ggplot(costos.aviones, aes(x = Pasajeros, y = Costo_MUSD)) +
 
 # Estimación del costo medio del accidente
 ```{r}
-data$costo_avion <- predict(mod.costos, newdata = data.frame(Pasajeros = data$Aboard))
+data$valor_avion <- predict(mod.costos, newdata = data.frame(Pasajeros = data$Aboard))
+data$costo_material <- data$valor_avion * (data$fatalities_rate + 0.15) / 1.15
+
 costo_por_fallecido <- 0.4822 * (1.035) ^ 45
 data$costo_muertes <- data$Fatalities * costo_por_fallecido
-data$costo_total <- data$costo_avion + data$costo_muertes
 
-prueba <- data %>% 
-  dplyr::select(costo_total) %>% 
-  filter(costo_total>500)
-  
-
-hist(prueba$costo_total)
+data$costo_total <- (data$costo_material + data$costo_muertes) / 0.965
 ```
-
 
 # Análisis exploratorio de datos
 
@@ -68,6 +62,7 @@ fig <- data %>%
   coord_flip() +
   labs(x = "Aeronave", y = "Frecuencia") +
   theme_minimal()
+
 ggsave("res/aviones_acc.pdf", fig, width = 6, height = 4)
 ```
 
@@ -81,7 +76,8 @@ fig <- data %>%
   coord_flip() +
   labs(x = "Fabricante", y = "Frecuencia") +
   theme_minimal()
-ggsave("res/fab_acc.pdf", fig, width = 6, height = 4)
+
+ggsave("res/fabricante_acc.pdf", fig, width = 6, height = 4)
 ```
 
 ## Cantidad de accidentes por año
@@ -92,6 +88,7 @@ fig <- data %>%
   geom_line(color = "lightblue4", size = 0.75) +
   labs(x = "Año", y = "Cantidad de accidentes") +
   theme_minimal()
+
 ggsave("res/acc_anual.pdf", fig, width = 6, height = 4)
 ```
 
@@ -106,7 +103,8 @@ fig <- data %>%
   coord_flip() +
   labs(x = "País/Región", y = "Frecuencia") +
   theme_minimal()
-ggsave("res/acc_reg.pdf", fig, width = 6, height = 4)
+
+ggsave("res/acc_region.pdf", fig, width = 6, height = 4)
 ```
 
 ## Distribución muertes a bordo
@@ -116,28 +114,29 @@ fig <- data %>%
   geom_histogram(binwidth = 5,
                  fill = "lightblue4",
                  color = "black") +
-  labs(x = "Fatalities", y = "Frecuencia") +
+  labs(x = "Muertes", y = "Frecuencia") +
   theme_minimal()
-ggsave("res/muertes_bor.pdf", fig, width = 6, height = 4)
+
+ggsave("res/muertes_abordo.pdf", fig, width = 6, height = 4)
 ```
 
 ## Distribución de la tasa de muertes
-
 ```{r}
 fig <- data %>%
-  ggplot(aes(x = tasa_muertes)) +
+  ggplot(aes(x = fatalities_rate)) +
     geom_histogram(binwidth = 0.05,
                  fill = "lightblue4",
                  color = "black") +
   labs(x = "Tasa de muertes", y = "Frecuencia") +
   theme_minimal()
+
 ggsave("res/tasa_muertes.pdf", fig, width = 6, height = 4)
 ```
 
 ## Severidad relativa del accidente
 ```{r}
 fig <- data %>%
-  ggplot(aes(x = Aboard, y = Fatalities, color = tasa_muertes)) +
+  ggplot(aes(x = Aboard, y = Fatalities, color = fatalities_rate)) +
   geom_point(alpha = 0.75, size = 2) +
   geom_abline(
     slope = 1,
@@ -149,61 +148,59 @@ fig <- data %>%
   scale_color_gradient(low = "lightblue", high = "darkred") +
   labs(x = "Pasajeros a bordo", y = "Muertes", color = "Tasa de muertes") +
   theme_minimal()
-ggsave("res/severidad.pdf", fig, width = 6, height = 4)
+
+ggsave("res/severidad_relativa.pdf", fig, width = 6, height = 4)
 ```
 
-# GLM
+## Valor estimado de mercado de los aviones accidentados
 ```{r}
-data <- data %>%
-  mutate(Operator = case_when(
-    str_detect(tolower(Operator), "air") ~ "Comercial",
-    str_detect(tolower(Operator), "military|force|navy") ~ "Militar",
-    TRUE ~ "Otro"
-  ))
+fig <- data %>%
+  ggplot(aes(x = valor_avion)) +
+  geom_histogram(binwidth = 25,
+                 fill = "lightblue4",
+                 color = "black") +
+  labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
+  theme_minimal()
+
+ggsave("res/valor_aviones.pdf", fig, width = 6, height = 4)
 ```
 
-
+## Costo estimado por daños del avión
 ```{r}
-mod.poisson <- glm(Fatalities ~ Operator, 
-                      data = data, family = poisson)
-summary(mod.poisson)
+fig <- data %>%
+  ggplot(aes(x = costo_material)) +
+  geom_histogram(binwidth = 25,
+                 fill = "lightblue4",
+                 color = "black") +
+  labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
+  theme_minimal()
+
+ggsave("res/costo_material.pdf", fig, width = 6, height = 4)
 ```
 
+## Costo estimado por muertes
 ```{r}
-dispersion <- sum(residuals(mod.poisson, type = "pearson")^2) / df.residual(mod.poisson)
-dispersion
+fig <- data %>%
+  ggplot(aes(x = costo_muertes)) +
+  geom_histogram(binwidth = 25,
+                 fill = "lightblue4",
+                 color = "black") +
+  labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
+  theme_minimal()
+
+ggsave("res/costo_muertes.pdf", fig, width = 6, height = 4)
 ```
 
-
+## Costo estimado total del accidente
 ```{r}
-modelo_nb <- glm.nb(Fatalities ~ Operator, data = data)
-summary(modelo_nb)
+fig <- data %>%
+  ggplot(aes(x = costo_total)) +
+  geom_histogram(binwidth = 25,
+                 fill = "lightblue4",
+                 color = "black") +
+  labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
+  theme_minimal()
+
+ggsave("res/costo_total.pdf", fig, width = 6, height = 4)
 ```
-
-# Primas
-
-```{r}
-data <- data %>% mutate(
-  costo_aviones = 100e6 * 1.05**(-(2024-data$Year)),
-  costo_vidas = data$Fatalities * 2.1e6 * 1.05**(-(2024-data$Year))
-)
-
-qx <- sum(data$Year == 2024)/1e6 # 43.8e6
-mean_fatal <- mean(data$Fatalities,na.rm = T)
-
-# Costo de asegurar un avión a 100 años
-
-ins_aviones <- sum(sapply(1:100, function(x) qx*(1-qx)**(x-1)*100e6*1.05**(-x+1)))
-
-
-# Costo de asegurar las personas que mueren en el avión a 100 años
-
-ins_vidas <- sum(sapply(1:100, function(x) qx*(1-qx)**(x-1)*mean_fatal*2.1e6*1.05**(-x+1)))
-
-# Prima nivelada
-
-an <- (1-1.05^-100)/0.05
-(prima <- (ins_aviones+ins_vidas)/an)
-```
-
 
