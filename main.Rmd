@@ -22,32 +22,38 @@ data <- data[data$fatalities_rate != Inf, ]
 data <- data[!is.na(data$fatalities_rate), ]
 ```
 
+# Estimación del costo medio de los aviones
 ```{r}
 costos.aviones <- read_excel("data/precio_estimado_aviones.xlsx")
-x <- 1:500
-y <- -1.5166792 + 0.7791141*x
-df <- data.frame(X=x, Y=y)
 
-mod <- lm((Costo_MUSD + 10) ~ Pasajeros, data = costos.aviones) 
-summary(mod)
-ggplot(df, aes(x = x, y = (y))) +
-  geom_line() +
+mod.costos <- lm((Costo_MUSD + 10) ~ Pasajeros, data = costos.aviones) 
+
+pred_data <- data.frame(
+  Pasajeros = costos.aviones$Pasajeros,
+  Prediccion = predict(mod.costos)
+)
+
+ggplot(costos.aviones, aes(x = Pasajeros, y = Costo_MUSD)) +
+  geom_point() +
+  geom_line(data = pred_data, aes(x = Pasajeros, y = Prediccion), color = "firebrick2", size = 1) +
   labs(x = "Número de pasajeros", y = "Costo (millones USD)") +
   theme_minimal()
-
-coef(mod)
 ```
 
+# Estimación del costo medio del accidente
+```{r}
+data$costo_avion <- predict(mod.costos, newdata = data.frame(Pasajeros = data$Aboard))
+costo_por_fallecido <- 0.4822 * (1.035) ^ 45
+data$costo_muertes <- data$Fatalities * costo_por_fallecido
+data$costo_total <- data$costo_avion + data$costo_muertes
 
+prueba <- data %>% 
+  dplyr::select(costo_total) %>% 
+  filter(costo_total>500)
+  
 
-
-
-
-
-
-
-
-
+hist(prueba$costo_total)
+```
 
 
 # Análisis exploratorio de datos
