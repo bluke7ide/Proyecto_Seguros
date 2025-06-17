@@ -5,7 +5,7 @@ output: html_document
 
 
 ```{r}
-pacman::p_load(tidyverse, dplyr, readxl, ggplot2)
+pacman::p_load(tidyverse, dplyr, readxl, ggplot2, evir, ismev)
 ```
 
 # Base de datos
@@ -201,12 +201,20 @@ fig <- data %>%
 #ggsave("res/costo_total.pdf", fig, width = 6, height = 4)
 ```
 
+```{r}
+rm(costos.aviones,
+   fig,
+   mod.costos,
+   pred_data,
+   costo_por_fallecido)
+```
+
 # Selección del umbral 
 
 ## Exceso medio condicional 
 ```{r}
 u_vals <- seq(min(data$costo_total), quantile(data$costo_total, 0.95), length = 100)
-mean_excess <- sapply(u_vals, function(u) mean(costos[costos > u] - u))
+mean_excess <- sapply(u_vals, function(u) mean(data$costo_total[data$costo_total > u] - u))
 
 df_umbral <- data.frame(u_vals = u_vals, mean_excess = mean_excess)
 
@@ -216,7 +224,19 @@ ggplot(df_umbral, aes(x = u_vals, y = mean_excess)) +
   labs(x = "Umbral (u)", y = "Valor medio excedente e(u)") +
   theme_minimal()
 ```
-## Función para encontrar el umbral para la cola de la distribución basado en la estabilidad de la función de exceso medio condicional
+
+## Gráfico de Hill
+```{r}
+hill(data$costo_total)
+```
+
+```{r}
+rm(df_umbral,
+   u_vals,
+   mean_excess)
+```
+
+## Función para encontrar el umbral basado en la estabilidad de la función de exceso medio condicional
 ```{r}
 find_threshold <- function(data,
                            probs = seq(0.90, 0.97, by = 0.01),
@@ -239,8 +259,11 @@ find_threshold <- function(data,
   
   return(threshold)
 }
+```
 
-u <- find_threshold(data$costo_total)
-u
+## Cálculo del umbral óptimo y los excesos
+```{r}
+(u <- find_threshold(data$costo_total))
+exc <- data$costo_total[data$costo_total > u] - u
 ```
 
