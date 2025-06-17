@@ -263,7 +263,31 @@ find_threshold <- function(data,
 
 ## Cálculo del umbral óptimo y los excesos
 ```{r}
-(u <- find_threshold(data$costo_total))
+u <- find_threshold(data$costo_total)
 exc <- data$costo_total[data$costo_total > u] - u
+
+hist(exc)
 ```
+
+# Ajuste de la distribución de la cola
+```{r}
+gpd_fit <- gpd.fit(exc, show = TRUE, threshold = 0)
+gpd.diag(gpd_fit)
+```
+
+```{r}
+sigma <- gpd_fit$mle[1]
+xi <- gpd_fit$mle[2]
+
+n <- length(data$costo_total)
+n_exc <- gpd_fit$n  
+
+p <- 0.99  # nivel extremo deseado
+prob_exc <- n_exc / n
+
+q_p <- (sigma / xi) * ( ((1 - p) / prob_exc)^(-xi) - 1 )
+q_p
+```
+
+
 
