@@ -5,10 +5,7 @@ output: html_document
 
 
 ```{r}
-pacman::p_load(tidyverse, 
-               dplyr, 
-               readxl, 
-               ggplot2)
+pacman::p_load(tidyverse, dplyr, readxl, ggplot2)
 ```
 
 # Base de datos
@@ -25,7 +22,7 @@ data <- data[!is.na(data$fatalities_rate), ]
 ```{r}
 costos.aviones <- read_excel("data/precio_estimado_aviones.xlsx")
 
-mod.costos <- lm((Costo_MUSD + 10) ~ Pasajeros, data = costos.aviones) 
+mod.costos <- lm((Costo_MUSD + 11) ~ Pasajeros, data = costos.aviones) 
 
 pred_data <- data.frame(
   Pasajeros = costos.aviones$Pasajeros,
@@ -44,7 +41,7 @@ ggplot(costos.aviones, aes(x = Pasajeros, y = Costo_MUSD)) +
 data$valor_avion <- predict(mod.costos, newdata = data.frame(Pasajeros = data$Aboard))
 data$costo_material <- data$valor_avion * (data$fatalities_rate + 0.15) / 1.15
 
-costo_por_fallecido <- 0.4822 * (1.035) ^ 45
+costo_por_fallecido <- 0.4822 * (1.035) ^ 45 # ajustado por inflación
 data$costo_muertes <- data$Fatalities * costo_por_fallecido
 
 data$costo_total <- (data$costo_material + data$costo_muertes) / 0.965
@@ -63,7 +60,7 @@ fig <- data %>%
   labs(x = "Aeronave", y = "Frecuencia") +
   theme_minimal()
 
-ggsave("res/aviones_acc.pdf", fig, width = 6, height = 4)
+#ggsave("res/aviones_acc.pdf", fig, width = 6, height = 4)
 ```
 
 ## Aeronaves con mayor cantidad de accidentes generalizada al fabricante 
@@ -77,7 +74,7 @@ fig <- data %>%
   labs(x = "Fabricante", y = "Frecuencia") +
   theme_minimal()
 
-ggsave("res/fabricante_acc.pdf", fig, width = 6, height = 4)
+#ggsave("res/fabricante_acc.pdf", fig, width = 6, height = 4)
 ```
 
 ## Cantidad de accidentes por año
@@ -89,7 +86,7 @@ fig <- data %>%
   labs(x = "Año", y = "Cantidad de accidentes") +
   theme_minimal()
 
-ggsave("res/acc_anual.pdf", fig, width = 6, height = 4)
+#ggsave("res/acc_anual.pdf", fig, width = 6, height = 4)
 ```
 
 ## Cantidad de accidentes por país/región
@@ -104,7 +101,7 @@ fig <- data %>%
   labs(x = "País/Región", y = "Frecuencia") +
   theme_minimal()
 
-ggsave("res/acc_region.pdf", fig, width = 6, height = 4)
+#ggsave("res/acc_region.pdf", fig, width = 6, height = 4)
 ```
 
 ## Distribución muertes a bordo
@@ -117,7 +114,7 @@ fig <- data %>%
   labs(x = "Muertes", y = "Frecuencia") +
   theme_minimal()
 
-ggsave("res/muertes_abordo.pdf", fig, width = 6, height = 4)
+#ggsave("res/muertes_abordo.pdf", fig, width = 6, height = 4)
 ```
 
 ## Distribución de la tasa de muertes
@@ -130,7 +127,7 @@ fig <- data %>%
   labs(x = "Tasa de muertes", y = "Frecuencia") +
   theme_minimal()
 
-ggsave("res/tasa_muertes.pdf", fig, width = 6, height = 4)
+#ggsave("res/tasa_muertes.pdf", fig, width = 6, height = 4)
 ```
 
 ## Severidad relativa del accidente
@@ -149,7 +146,7 @@ fig <- data %>%
   labs(x = "Pasajeros a bordo", y = "Muertes", color = "Tasa de muertes") +
   theme_minimal()
 
-ggsave("res/severidad_relativa.pdf", fig, width = 6, height = 4)
+#ggsave("res/severidad_relativa.pdf", fig, width = 6, height = 4)
 ```
 
 ## Valor estimado de mercado de los aviones accidentados
@@ -162,7 +159,7 @@ fig <- data %>%
   labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
   theme_minimal()
 
-ggsave("res/valor_aviones.pdf", fig, width = 6, height = 4)
+#ggsave("res/valor_aviones.pdf", fig, width = 6, height = 4)
 ```
 
 ## Costo estimado por daños del avión
@@ -175,7 +172,7 @@ fig <- data %>%
   labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
   theme_minimal()
 
-ggsave("res/costo_material.pdf", fig, width = 6, height = 4)
+#ggsave("res/costo_material.pdf", fig, width = 6, height = 4)
 ```
 
 ## Costo estimado por muertes
@@ -188,7 +185,7 @@ fig <- data %>%
   labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
   theme_minimal()
 
-ggsave("res/costo_muertes.pdf", fig, width = 6, height = 4)
+#ggsave("res/costo_muertes.pdf", fig, width = 6, height = 4)
 ```
 
 ## Costo estimado total del accidente
@@ -201,6 +198,49 @@ fig <- data %>%
   labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
   theme_minimal()
 
-ggsave("res/costo_total.pdf", fig, width = 6, height = 4)
+#ggsave("res/costo_total.pdf", fig, width = 6, height = 4)
+```
+
+# Selección del umbral 
+
+## Exceso medio condicional 
+```{r}
+u_vals <- seq(min(data$costo_total), quantile(data$costo_total, 0.95), length = 100)
+mean_excess <- sapply(u_vals, function(u) mean(costos[costos > u] - u))
+
+df_umbral <- data.frame(u_vals = u_vals, mean_excess = mean_excess)
+
+ggplot(df_umbral, aes(x = u_vals, y = mean_excess)) +
+  geom_line(color = "lightblue4", size = 1) +
+  geom_vline(xintercept = 180, color = "red", linetype = "dashed") +
+  labs(x = "Umbral (u)", y = "Valor medio excedente e(u)") +
+  theme_minimal()
+```
+## Función para encontrar el umbral para la cola de la distribución basado en la estabilidad de la función de exceso medio condicional
+```{r}
+find_threshold <- function(data,
+                           probs = seq(0.90, 0.97, by = 0.01),
+                           window = 5) {
+  data_sorted <- sort(data)
+  
+  excess_mean <- sapply(probs, function(p) {
+    u <- quantile(data_sorted, p)
+    mean(data_sorted[data_sorted > u] - u)
+  })
+  
+  dif <- diff(excess_mean)
+  
+  sd_vals <- sapply(1:(length(dif) - window), function(i)
+    sd(dif[i:(i + window - 1)]))
+  
+  idx <- which.min(sd_vals)
+  
+  threshold <- quantile(data_sorted, probs[idx + floor(window / 2)])
+  
+  return(threshold)
+}
+
+u <- find_threshold(data$costo_total)
+u
 ```
 
