@@ -5,7 +5,7 @@ output: html_document
 
 
 ```{r}
-pacman::p_load(tidyverse, dplyr, readxl, ggplot2, evir, ismev)
+pacman::p_load(tidyverse, dplyr, readxl, ggplot2, evir, ismev, evd)
 ```
 
 # Base de datos
@@ -269,12 +269,13 @@ exc <- data$costo_total[data$costo_total > u] - u
 hist(exc)
 ```
 
-# Ajuste de la distribución de la cola
+# Ajuste usando GPD
 ```{r}
 gpd_fit <- gpd.fit(exc, show = TRUE, threshold = 0)
 gpd.diag(gpd_fit)
 ```
 
+## VaR y TVaR
 ```{r}
 sigma <- gpd_fit$mle[1]
 xi <- gpd_fit$mle[2]
@@ -283,10 +284,68 @@ n <- length(data$costo_total)
 n_exc <- gpd_fit$n  
 
 p <- 0.99  # nivel extremo deseado
-prob_exc <- n_exc / n
+p_u <- n_exc / n
 
-q_p <- (sigma / xi) * ( ((1 - p) / prob_exc)^(-xi) - 1 )
-q_p
+VaR_p <- (sigma / xi) * ( ((1 - p) / p_u)^(-xi) - 1 )
+TVaR_p <- VaR_p / (1 - xi) + sigma / (1 - xi)
+
+cat("VaR (nivel", p,"):", VaR_p, "\n")
+cat("TVaR (nivel", p,"):", TVaR_p, "\n")
+```
+
+# Ajuste usando Frechet
+
+```{r}
+maximos <- tapply(data$costo_total, data$Year, max)
+gev_fit <- fgev(maximos)
+summary(gev_fit)
+```
+
+```{r}
+location <- gev_fit$estimate[1]
+scale <- gev_fit$estimate[2]
+shape <- gev_fit$estimate[3]
+
+q_theoretical <- qgev(ppoints(length(maximos)),
+                     loc = location,
+                     scale = scale,
+                     shape = shape)
+
+q_empirical <- sort(maximos)
+
+plot(q_theoretical, q_empirical,
+     main = "Q-Q Plot GEV",
+     xlab = "Valor teórico GEV",
+     ylab = "Valor empírico")
+abline(0, 1, col = "red")  
+```
+
+```{r}
+p_theoretical <- pgev(sort(maximos),
+                      loc = location,
+                      scale = scale,
+                      shape = shape)
+
+p_empirical <- ppoints(length(maximos))
+
+plot(p_empirical, p_theoretical,
+     main = "P-P Plot GEV",
+     xlab = "Probabilidades empíricas",
+     ylab = "Probabilidades teóricas")
+abline(0, 1, col = "red")  
+
+```
+
+```{r}
+hist(maximos, freq = FALSE, main = "Densidad GEV",
+     xlab = "Valor", col = "lightgrey", border = "white")
+
+curve(dgev(x,
+            loc = location,
+            scale = scale,
+            shape = shape),
+      add = TRUE, col = "red", lwd = 2)
+
 ```
 
 
