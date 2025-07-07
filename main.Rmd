@@ -211,7 +211,7 @@ rm(costos.aviones,
 
 # Selección del umbral 
 
-## Exceso medio condicional 
+## Exceso medio condicional - diagnóstico 
 ```{r}
 u_vals <- seq(min(data$costo_total), quantile(data$costo_total, 0.95), length = 100)
 mean_excess <- sapply(u_vals, function(u) mean(data$costo_total[data$costo_total > u] - u))
@@ -223,14 +223,7 @@ ggplot(df_umbral, aes(x = u_vals, y = mean_excess)) +
   geom_vline(xintercept = 180, color = "red", linetype = "dashed") +
   labs(x = "Umbral (u)", y = "Valor medio excedente e(u)") +
   theme_minimal()
-```
 
-## Gráfico de Hill
-```{r}
-hill(data$costo_total)
-```
-
-```{r}
 rm(df_umbral,
    u_vals,
    mean_excess)
@@ -263,48 +256,66 @@ find_threshold <- function(data,
 
 ## Cálculo del umbral óptimo y los excesos
 ```{r}
-u <- find_threshold(data$costo_total)
-exc <- data$costo_total[data$costo_total > u] - u
+(u <- find_threshold(data$costo_total))
+exc <- as.numeric(data$costo_total[data$costo_total > u] - u)
 
-hist(exc)
+ggplot(data.frame(exceso = exc), aes(x = exceso)) +
+  geom_histogram(bins = 20,
+                 fill = "steelblue",
+                 color = "white") +
+  labs(title = "Distribución de los excesos",
+       x = "Exceso (costo_total - umbral)", 
+       y = "Frecuencia") +
+  theme_minimal()
 ```
 
-# Ajuste usando GPD
+# Ajuste usando GDP
 ```{r}
 gpd_fit <- gpd.fit(exc, show = TRUE, threshold = 0)
 gpd.diag(gpd_fit)
 ```
 
-## VaR y TVaR
+## Densidad GDP
 ```{r}
 sigma <- gpd_fit$mle[1]
 xi <- gpd_fit$mle[2]
 
+ggplot(data.frame(exceso = exc), aes(x = exceso)) +
+  geom_histogram(aes(y = ..density..), bins = 20, fill = "steelblue", color = "white") +
+  stat_function(fun = function(x) dgpd(x, loc = 0, scale = sigma, shape = xi),
+                color = "red", size = 1) +
+  labs(title = "Ajuste de la densidad GPD a los excesos sobre el umbral u",
+       x = "Exceso sobre umbral", 
+       y = "Densidad") +
+  theme_minimal()
+```
+
+## VaR y TVaR para GPD
+```{r}
 n <- length(data$costo_total)
 n_exc <- gpd_fit$n  
 
-p <- 0.99  # nivel extremo deseado
+p <- 0.95
 p_u <- n_exc / n
 
-VaR_p <- (sigma / xi) * ( ((1 - p) / p_u)^(-xi) - 1 )
-TVaR_p <- VaR_p / (1 - xi) + sigma / (1 - xi)
+VaR <- u + (sigma / xi) * ( ((1 - p) / p_u)^(-xi) - 1 )
+TVaR <- u + VaR_p / (1 - xi) + sigma / (1 - xi)
 
-cat("VaR (nivel", p,"):", VaR_p, "\n")
-cat("TVaR (nivel", p,"):", TVaR_p, "\n")
+cat("VaR (nivel", p,"):", VaR, "\n")
+cat("TVaR (nivel", p,"):", TVaR, "\n")
 ```
 
-# Ajuste usando Frechet
-
+# Ajuste usando GEV
 ```{r}
 maximos <- tapply(data$costo_total, data$Year, max)
 gev_fit <- fgev(maximos)
 summary(gev_fit)
-```
 
-```{r}
 location <- gev_fit$estimate[1]
 scale <- gev_fit$estimate[2]
 shape <- gev_fit$estimate[3]
+
+par(mfrow = c(1, 2))
 
 q_theoretical <- qgev(ppoints(length(maximos)),
                      loc = location,
@@ -318,9 +329,7 @@ plot(q_theoretical, q_empirical,
      xlab = "Valor teórico GEV",
      ylab = "Valor empírico")
 abline(0, 1, col = "red")  
-```
 
-```{r}
 p_theoretical <- pgev(sort(maximos),
                       loc = location,
                       scale = scale,
@@ -333,20 +342,38 @@ plot(p_empirical, p_theoretical,
      xlab = "Probabilidades empíricas",
      ylab = "Probabilidades teóricas")
 abline(0, 1, col = "red")  
-
 ```
 
+## Densidad GEV
 ```{r}
-hist(maximos, freq = FALSE, main = "Densidad GEV",
-     xlab = "Valor", col = "lightgrey", border = "white")
-
-curve(dgev(x,
-            loc = location,
-            scale = scale,
-            shape = shape),
-      add = TRUE, col = "red", lwd = 2)
-
+ggplot(data.frame(maximo = maximos), aes(x = maximo)) +
+  geom_histogram(aes(y = ..density..),
+                 bins = 20,
+                 fill = "steelblue",
+                 color = "white") +
+  stat_function(fun = function(x) dgev(x,
+                                       loc = location,
+                                       scale = scale,
+                                       shape = shape),
+                color = "red",
+                size = 1) +
+  labs(title = "Ajuste de la densidad GEV a los máximos anuales",
+       x = "Máximos anuales de costo total",
+       y = "Densidad") +
+  theme_minimal()
 ```
 
+## VaR y TVaR para GEV
+```{r}
+p <- 0.95
 
+VaR_gev <- qgev(p, loc = location, scale = scale, shape = shape)
+
+TVaR_gev <- integrate(function(q)
+  qgev(q, loc = location, scale = scale, shape = shape),
+  lower = p, upper = 1)$value / (1 - p)
+
+cat("VaR (nivel", p,") con GEV:", VaR_gev, "\n")
+cat("TVaR (nivel", p,") con GEV:", TVaR_gev, "\n")
+```
 
