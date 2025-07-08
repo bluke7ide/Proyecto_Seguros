@@ -1,15 +1,23 @@
 ---
-title: "main"
-output: html_document
+title: "Modelación del riesgo en la cola de la distribución de eventos extremos en accidentes aéreos"
+author: 
+  - Anthony Mauricio Jiménez Navarro - C24067
+  - Gustavo Alberto Amador Fonseca - C20459
+  - Javier Antonio Hernández Navarro - C13674
+  - Luis Fernando Amey Apuy - C20470
+date: "`r Sys.Date()`"
+output:
+  rmdformats::robobook:
+    self_contained: true
+    highlight: tango
 ---
 
-
-```{r}
-pacman::p_load(tidyverse, dplyr, readxl, ggplot2, evir, ismev, evd)
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+pacman::p_load(tidyverse, dplyr, readxl, ggplot2, ismev, evd, knitr)
 ```
 
 # Base de datos
-```{r message=FALSE, warning=FALSE}
+```{r message=FALSE, warning=FALSE, echo=FALSE}
 data <- read_csv("data/aircrahesFullDataUpdated_2024.csv")
 names(data)[11] <- "Fatalities"
 data <- data %>% mutate(total_fatalities = Ground + Fatalities,
@@ -18,8 +26,13 @@ data <- data[data$fatalities_rate != Inf, ]
 data <- data[!is.na(data$fatalities_rate), ]
 ```
 
+```{r echo=FALSE}
+kable(head(data))
+```
+
+
 # Estimación del costo medio de los aviones
-```{r}
+```{r warning=FALSE, echo=FALSE}
 costos.aviones <- read_excel("data/precio_estimado_aviones.xlsx")
 
 mod.costos <- lm((Costo_MUSD + 11) ~ Pasajeros, data = costos.aviones) 
@@ -30,42 +43,43 @@ pred_data <- data.frame(
 )
 
 ggplot(costos.aviones, aes(x = Pasajeros, y = Costo_MUSD)) +
-  geom_point() +
-  geom_line(data = pred_data, aes(x = Pasajeros, y = Prediccion), color = "firebrick2", size = 1) +
+  geom_point(color = "lightblue4", size = 1.5) +
+  geom_line(data = pred_data, aes(x = Pasajeros, y = Prediccion), color = "red", size = 1.1) +
   labs(x = "Número de pasajeros", y = "Costo (millones USD)") +
   theme_minimal()
 ```
 
 # Estimación del costo medio del accidente
 ```{r}
+# Costo material
 data$valor_avion <- predict(mod.costos, newdata = data.frame(Pasajeros = data$Aboard))
 data$costo_material <- data$valor_avion * (data$fatalities_rate + 0.15) / 1.15
 
-costo_por_fallecido <- 0.4822 * (1.035) ^ 45 # ajustado por inflación
+# Costo humano
+costo_por_fallecido <- 0.4822 * (1.035) ^ 45 # ajustado por inflación de 3.5%
 data$costo_muertes <- data$Fatalities * costo_por_fallecido
 
+# Costo total
 data$costo_total <- (data$costo_material + data$costo_muertes) / 0.965
 ```
 
 # Análisis exploratorio de datos
 
 ## Aeronaves con mayor cantidad de accidentes
-```{r}
-fig <- data %>% 
-  count(Aircraft, sort = TRUE) %>% 
-  slice_max(n, n = 20) %>% 
+```{r echo=FALSE}
+data %>%
+  count(Aircraft, sort = TRUE) %>%
+  slice_max(n, n = 20) %>%
   ggplot(aes(x = reorder(Aircraft, n), y = n)) +
   geom_col(fill = 'lightblue4') +
   coord_flip() +
   labs(x = "Aeronave", y = "Frecuencia") +
   theme_minimal()
-
-#ggsave("res/aviones_acc.pdf", fig, width = 6, height = 4)
 ```
 
 ## Aeronaves con mayor cantidad de accidentes generalizada al fabricante 
-```{r}
-fig <- data %>% 
+```{r echo=FALSE}
+data %>% 
   count(`Aircraft Manufacturer`, sort = TRUE) %>% 
   slice_max(n, n= 15) %>% 
   ggplot(aes(x = reorder(`Aircraft Manufacturer`, n), y = n)) +
@@ -73,25 +87,21 @@ fig <- data %>%
   coord_flip() +
   labs(x = "Fabricante", y = "Frecuencia") +
   theme_minimal()
-
-#ggsave("res/fabricante_acc.pdf", fig, width = 6, height = 4)
 ```
 
 ## Cantidad de accidentes por año
-```{r}
-fig <- data %>%
+```{r echo=FALSE}
+data %>%
   count(Year) %>%
   ggplot(aes(x = Year, y = n)) +
-  geom_line(color = "lightblue4", size = 0.75) +
+  geom_line(color = "lightblue4", size = 0.8) +
   labs(x = "Año", y = "Cantidad de accidentes") +
   theme_minimal()
-
-#ggsave("res/acc_anual.pdf", fig, width = 6, height = 4)
 ```
 
 ## Cantidad de accidentes por país/región
-```{r}
-fig <- data %>%
+```{r echo=FALSE}
+data %>%
   filter(!is.na(`Country/Region`), `Country/Region` != "N/A") %>%
   count(`Country/Region`, sort = T) %>%
   slice_max(n, n = 20) %>%
@@ -100,39 +110,33 @@ fig <- data %>%
   coord_flip() +
   labs(x = "País/Región", y = "Frecuencia") +
   theme_minimal()
-
-#ggsave("res/acc_region.pdf", fig, width = 6, height = 4)
 ```
 
-## Distribución muertes a bordo
-```{r}
-fig <- data %>%
+## Distribución de las muertes a bordo
+```{r echo=FALSE}
+data %>%
   ggplot(aes(x = Fatalities)) +
-  geom_histogram(binwidth = 5,
+  geom_histogram(binwidth = 10,
                  fill = "lightblue4",
-                 color = "black") +
+                 color = "white") +
   labs(x = "Muertes", y = "Frecuencia") +
   theme_minimal()
-
-#ggsave("res/muertes_abordo.pdf", fig, width = 6, height = 4)
 ```
 
 ## Distribución de la tasa de muertes
-```{r}
-fig <- data %>%
+```{r echo=FALSE}
+data %>%
   ggplot(aes(x = fatalities_rate)) +
     geom_histogram(binwidth = 0.05,
                  fill = "lightblue4",
-                 color = "black") +
+                 color = "white") +
   labs(x = "Tasa de muertes", y = "Frecuencia") +
   theme_minimal()
-
-#ggsave("res/tasa_muertes.pdf", fig, width = 6, height = 4)
 ```
 
 ## Severidad relativa del accidente
-```{r}
-fig <- data %>%
+```{r echo=FALSE}
+data %>%
   ggplot(aes(x = Aboard, y = Fatalities, color = fatalities_rate)) +
   geom_point(alpha = 0.75, size = 2) +
   geom_abline(
@@ -140,97 +144,67 @@ fig <- data %>%
     intercept = 0,
     linetype = "dashed",
     color = "red",
-    alpha = 0.5
+    alpha = 0.5,
+    size = 1.1
   ) +
-  scale_color_gradient(low = "lightblue", high = "darkred") +
+  scale_color_gradient(low = "lightblue4", high = "firebrick2") +
   labs(x = "Pasajeros a bordo", y = "Muertes", color = "Tasa de muertes") +
   theme_minimal()
-
-#ggsave("res/severidad_relativa.pdf", fig, width = 6, height = 4)
 ```
 
-## Valor estimado de mercado de los aviones accidentados
-```{r}
-fig <- data %>%
+## Valor de mercado estimado de los aviones accidentados
+```{r echo=FALSE}
+data %>%
   ggplot(aes(x = valor_avion)) +
   geom_histogram(binwidth = 25,
                  fill = "lightblue4",
-                 color = "black") +
+                 color = "white") +
   labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
   theme_minimal()
-
-#ggsave("res/valor_aviones.pdf", fig, width = 6, height = 4)
 ```
 
 ## Costo estimado por daños del avión
-```{r}
-fig <- data %>%
+```{r echo=FALSE}
+data %>%
   ggplot(aes(x = costo_material)) +
   geom_histogram(binwidth = 25,
                  fill = "lightblue4",
-                 color = "black") +
-  labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
+                 color = "white") +
+  labs(x = "Costo estimado (millones USD)", y = "Frecuencia") + 
   theme_minimal()
-
-#ggsave("res/costo_material.pdf", fig, width = 6, height = 4)
 ```
 
 ## Costo estimado por muertes
-```{r}
-fig <- data %>%
+```{r echo=FALSE}
+data %>%
   ggplot(aes(x = costo_muertes)) +
   geom_histogram(binwidth = 25,
                  fill = "lightblue4",
-                 color = "black") +
-  labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
+                 color = "white") +
+  labs(x = "Costo estimado (millones USD)", y = "Frecuencia") + 
   theme_minimal()
-
-#ggsave("res/costo_muertes.pdf", fig, width = 6, height = 4)
 ```
 
-## Costo estimado total del accidente
-```{r}
-fig <- data %>%
+## Costo total estimado del accidente
+```{r echo=FALSE}
+data %>%
   ggplot(aes(x = costo_total)) +
   geom_histogram(binwidth = 25,
                  fill = "lightblue4",
-                 color = "black") +
-  labs(x = "Valor estimado (millones USD)", y = "Frecuencia") + 
+                 color = "white") +
+  labs(x = "Costo estimado (millones USD)", y = "Frecuencia") + 
   theme_minimal()
-
-#ggsave("res/costo_total.pdf", fig, width = 6, height = 4)
 ```
 
-```{r}
+```{r echo=FALSE}
 rm(costos.aviones,
-   fig,
    mod.costos,
    pred_data,
    costo_por_fallecido)
 ```
 
 # Selección del umbral 
-
-## Exceso medio condicional - diagnóstico 
-```{r}
-u_vals <- seq(min(data$costo_total), quantile(data$costo_total, 0.95), length = 100)
-mean_excess <- sapply(u_vals, function(u) mean(data$costo_total[data$costo_total > u] - u))
-
-df_umbral <- data.frame(u_vals = u_vals, mean_excess = mean_excess)
-
-ggplot(df_umbral, aes(x = u_vals, y = mean_excess)) +
-  geom_line(color = "lightblue4", size = 1) +
-  geom_vline(xintercept = 180, color = "red", linetype = "dashed") +
-  labs(x = "Umbral (u)", y = "Valor medio excedente e(u)") +
-  theme_minimal()
-
-rm(df_umbral,
-   u_vals,
-   mean_excess)
-```
-
-## Función para encontrar el umbral basado en la estabilidad de la función de exceso medio condicional
-```{r}
+```{r echo=FALSE}
 find_threshold <- function(data,
                            probs = seq(0.90, 0.97, by = 0.01),
                            window = 5) {
@@ -254,44 +228,70 @@ find_threshold <- function(data,
 }
 ```
 
-## Cálculo del umbral óptimo y los excesos
 ```{r}
 (u <- find_threshold(data$costo_total))
+```
+
+## Exceso medio condicional - diagnóstico
+```{r echo=FALSE}
+u_vals <- seq(min(data$costo_total), quantile(data$costo_total, 0.95), length = 100)
+mean_excess <- sapply(u_vals, function(u) mean(data$costo_total[data$costo_total > u] - u))
+
+df_umbral <- data.frame(u_vals = u_vals, mean_excess = mean_excess)
+
+ggplot(df_umbral, aes(x = u_vals, y = mean_excess)) +
+  geom_line(color = "lightblue4", size = 1.2) +
+  geom_vline(xintercept = 197.7766, color = "red", linetype = "dashed", size = 1.1) +
+  labs(x = "Umbral (u)", y = "Valor medio excedente e(u)") +
+  theme_minimal()
+```
+
+## Distribución de los excesos
+```{r echo=FALSE}
 exc <- as.numeric(data$costo_total[data$costo_total > u] - u)
 
 ggplot(data.frame(exceso = exc), aes(x = exceso)) +
   geom_histogram(bins = 20,
-                 fill = "steelblue",
+                 fill = "lightblue4",
                  color = "white") +
-  labs(title = "Distribución de los excesos",
-       x = "Exceso (costo_total - umbral)", 
+  labs(x = "Exceso (costo_total - umbral)", 
        y = "Frecuencia") +
   theme_minimal()
+```
+
+
+```{r echo=FALSE}
+rm(df_umbral,
+   u_vals,
+   mean_excess)
 ```
 
 # Ajuste usando GDP
 ```{r}
 gpd_fit <- gpd.fit(exc, show = TRUE, threshold = 0)
+```
+
+## Diagnósticos GPD
+```{r echo=FALSE}
 gpd.diag(gpd_fit)
 ```
 
 ## Densidad GDP
-```{r}
+```{r echo=FALSE, warning=FALSE}
 sigma <- gpd_fit$mle[1]
 xi <- gpd_fit$mle[2]
 
 ggplot(data.frame(exceso = exc), aes(x = exceso)) +
-  geom_histogram(aes(y = ..density..), bins = 20, fill = "steelblue", color = "white") +
+  geom_histogram(aes(y = ..density..), bins = 20, fill = "lightblue4", color = "white") +
   stat_function(fun = function(x) dgpd(x, loc = 0, scale = sigma, shape = xi),
-                color = "red", size = 1) +
-  labs(title = "Ajuste de la densidad GPD a los excesos sobre el umbral u",
-       x = "Exceso sobre umbral", 
+                color = "red", size = 1.1) +
+  labs(x = "Exceso sobre umbral", 
        y = "Densidad") +
   theme_minimal()
 ```
 
 ## VaR y TVaR para GPD
-```{r}
+```{r echo=FALSE}
 n <- length(data$costo_total)
 n_exc <- gpd_fit$n  
 
@@ -299,7 +299,7 @@ p <- 0.95
 p_u <- n_exc / n
 
 VaR <- u + (sigma / xi) * ( ((1 - p) / p_u)^(-xi) - 1 )
-TVaR <- u + VaR_p / (1 - xi) + sigma / (1 - xi)
+TVaR <- u + VaR / (1 - xi) + sigma / (1 - xi)
 
 cat("VaR (nivel", p,"):", VaR, "\n")
 cat("TVaR (nivel", p,"):", TVaR, "\n")
@@ -310,7 +310,10 @@ cat("TVaR (nivel", p,"):", TVaR, "\n")
 maximos <- tapply(data$costo_total, data$Year, max)
 gev_fit <- fgev(maximos)
 summary(gev_fit)
+```
 
+## Diagnósticos GEV
+```{r echo=FALSE}
 location <- gev_fit$estimate[1]
 scale <- gev_fit$estimate[2]
 shape <- gev_fit$estimate[3]
@@ -345,26 +348,25 @@ abline(0, 1, col = "red")
 ```
 
 ## Densidad GEV
-```{r}
+```{r echo=FALSE, warning=FALSE}
 ggplot(data.frame(maximo = maximos), aes(x = maximo)) +
   geom_histogram(aes(y = ..density..),
                  bins = 20,
-                 fill = "steelblue",
+                 fill = "lightblue4",
                  color = "white") +
   stat_function(fun = function(x) dgev(x,
                                        loc = location,
                                        scale = scale,
                                        shape = shape),
                 color = "red",
-                size = 1) +
-  labs(title = "Ajuste de la densidad GEV a los máximos anuales",
-       x = "Máximos anuales de costo total",
+                size = 1.1) +
+  labs(x = "Máximos anuales de costo total",
        y = "Densidad") +
   theme_minimal()
 ```
 
 ## VaR y TVaR para GEV
-```{r}
+```{r echo=FALSE}
 p <- 0.95
 
 VaR_gev <- qgev(p, loc = location, scale = scale, shape = shape)
